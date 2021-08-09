@@ -16,14 +16,15 @@ T = TypeVar("T")
 OptFloat = Optional[float]
 
 
-current_loop = getattr(asyncio, "get_running_loop", None)
-if current_loop is None:
-    current_loop = asyncio.get_event_loop
-
-
 class Queue(Generic[T]):
-    def __init__(self, maxsize: int = 0) -> None:
-        self._loop = current_loop()
+    def __init__(self, maxsize: int = 0, event_loop: Optional[Any] = None) -> None:
+        if event_loop:
+            self._loop: Any = event_loop
+            asyncio.set_event_loop(self._loop)
+        else:
+            get_loop = getattr(asyncio, "get_running_loop", asyncio.get_event_loop)
+            self._loop: Any = get_loop()
+
         self._maxsize = maxsize
 
         self._init(maxsize)
@@ -64,6 +65,9 @@ class Queue(Generic[T]):
         self._sync_queue = _SyncQueueProxy(self)
         self._async_queue = _AsyncQueueProxy(self)
 
+    def current_loop(self) -> Any:
+        return self._loop
+
     def close(self) -> None:
         with self._sync_mutex:
             self._closing = True
@@ -82,7 +86,7 @@ class Queue(Generic[T]):
         # of async tasks created inside
         # _notify_async_not_empty, _notify_async_not_full
         # methods.
-        await asyncio.sleep(0)
+        await asyncio.sleep(0, loop=self._loop)
         if not self._pending:
             return
         await asyncio.wait(self._pending)

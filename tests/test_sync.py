@@ -410,11 +410,10 @@ class TestFailingQueue(BlockingTestMixin):
 
     @pytest.mark.asyncio
     async def test_closed_loop_non_failing(self):
-        loop = janus.current_loop()
         _q = janus.Queue(QUEUE_SIZE)
         q = _q.sync_q
         # we are pacthing loop to follow setUp/tearDown agreement
-        with patch.object(loop, "call_soon_threadsafe") as func:
+        with patch.object(_q.current_loop(), "call_soon_threadsafe") as func:
             func.side_effect = RuntimeError()
             q.put_nowait(1)
             assert func.call_count == 1
